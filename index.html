@@ -42,25 +42,38 @@ button:disabled{opacity:.55}.actions{margin:24px 0 12px}.status{font-weight:650;
 <div class="bar"><div id="fill" class="fill"></div></div>
 <div id="results" class="results"></div>
 <div class="note"><strong>Kalite koruma:</strong> Video ve ses yeniden sıkıştırılmaz (-c copy). Bu nedenle yeniden kodlamadan kaynaklı kalite kaybı olmaz. Kesimler anahtar karelere (videonun bağımsız başlayabildiği görüntü karelerine) göre yapıldığından parçalar seçtiğin süreden biraz uzun veya kısa olabilir. Bazı videolarda ses/video akışlarının özellikleri nedeniyle MP4'e bölme başarısız olabilir.</div>
-<p class="small">İşlem telefonunun tarayıcısında yapılır; video sunucuya yüklenmez. İlk kullanımda video motoru internetten indirilir (yaklaşık 30 MB). Büyük dosyalar telefon belleğini zorlayabilir. İşlem bitene kadar bu sayfayı kapatma. Android'de güncel Chrome kullan.</p>
+<p class="small">Video sunucuya yüklenmez; tarayıcıda işlenir. Dosya seçicide 1 GB'a kadar dosya kabul edilir; ancak bu, 1 GB dosyanın her telefonda işleneceği anlamına gelmez. Bu sürüm videonun tamamını tarayıcı belleğine aldığı için 1 GB dosyada bellek yetersizliği yaşanabilir. Gerçek ve güvenilir 1 GB desteği için videoyu sunucuda işleyen bir arka uç gerekir. İlk kullanımda video motoru internetten indirilir. İşlem bitene kadar sayfayı kapatma.</p>
 </main>
 <script type="module">
 const $ = id => document.getElementById(id);
 const fileInput=$('file'), splitBtn=$('split'), status=$('status'), fill=$('fill'), results=$('results');
 let ffmpeg=null, loaded=false, selectedFile=null, fetchFileFn=null;
-fileInput.addEventListener('change',()=>{
- selectedFile=fileInput.files?.[0]||null;
- $('fileInfo').textContent=selectedFile?`${selectedFile.name} · ${(selectedFile.size/1024/1024).toFixed(1)} MB`:'Henüz video seçilmedi.';
+function updateSelectedFile(){
+ const picked=fileInput.files && fileInput.files.length ? fileInput.files[0] : null;
+ selectedFile=picked;
+ $('fileInfo').textContent=selectedFile
+  ? `${selectedFile.name} · ${(selectedFile.size/1024/1024).toFixed(1)} MB`
+  : 'Henüz video seçilmedi.';
  splitBtn.disabled=!selectedFile;
  results.innerHTML=''; fill.style.width='0%';
- status.textContent=selectedFile?'Video hazır. Parça süresini seçebilirsin.':'Video seçilmesini bekliyor.';
-});
+ if(!selectedFile){status.textContent='Video seçilmesini bekliyor.';return;}
+ if(selectedFile.size>1024*1024*1024){
+  splitBtn.disabled=true;
+  status.textContent='Dosya 1 GB sınırını aşıyor.';
+  return;
+ }
+ status.textContent=selectedFile.size>350*1024*1024
+  ? 'Video seçildi. Uyarı: Bu büyüklükteki dosyalar tarayıcı belleğini aşabilir; bilgisayarda denemen önerilir.'
+  : 'Video seçildi. Parça süresini seçebilirsin.';
+}
+fileInput.addEventListener('input',updateSelectedFile);
+fileInput.addEventListener('change',updateSelectedFile);
 function setStatus(msg,pct){status.textContent=msg;if(pct!==undefined)fill.style.width=Math.max(0,Math.min(100,pct))+'%';}
 function safeName(name){return name.replace(/\.[^.]+$/,'').replace(/[^\p{L}\p{N}_-]+/gu,'_').slice(0,60)||'video';}
 async function loadEngine(){
  if(loaded)return;
  setStatus('Video motoru indiriliyor. İlk kullanımda biraz sürebilir…',2);
- const [{FFmpeg},{fetchFile}] = await Promise.all([
+ const [{FFmpeg},{fetchFile,toBlobURL}] = await Promise.all([
   import('https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/dist/esm/index.js'),
   import('https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.2/dist/esm/index.js')
  ]);
@@ -68,7 +81,6 @@ async function loadEngine(){
  ffmpeg=new FFmpeg();
  ffmpeg.on('log',({message})=>{if(message) setStatus('İşleniyor: '+message.slice(-150));});
  ffmpeg.on('progress',({progress})=>{if(Number.isFinite(progress))fill.style.width=Math.max(3,Math.min(96,progress*100))+'%';});
- const base='https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd';
  const base='https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd';
  // Çekirdek dosyalarını tarayıcıda blob adresine çeviriyoruz; bu CORS kaynaklı
  // içe aktarma sorunlarını önler. Ana worker ise GitHub Pages'ten aynı domainden gelir.
