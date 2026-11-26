@@ -69,9 +69,11 @@ async function loadEngine(){
  ffmpeg.on('log',({message})=>{if(message) setStatus('İşleniyor: '+message.slice(-150));});
  ffmpeg.on('progress',({progress})=>{if(Number.isFinite(progress))fill.style.width=Math.max(3,Math.min(96,progress*100))+'%';});
  const base='https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd';
- const coreURL='https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.js';
- const wasmURL='https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.wasm';
- // Worker giriş dosyası GitHub Pages üzerindeki aynı domainden yüklenir.
+ const base='https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd';
+ // Çekirdek dosyalarını tarayıcıda blob adresine çeviriyoruz; bu CORS kaynaklı
+ // içe aktarma sorunlarını önler. Ana worker ise GitHub Pages'ten aynı domainden gelir.
+ const coreURL=await toBlobURL(base+'/ffmpeg-core.js','text/javascript');
+ const wasmURL=await toBlobURL(base+'/ffmpeg-core.wasm','application/wasm');
  const classWorkerURL=new URL('./vendor/worker.js',window.location.href).href;
  await ffmpeg.load({coreURL,wasmURL,classWorkerURL});
  loaded=true;
